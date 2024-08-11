@@ -1,0 +1,25 @@
+{
+  "development": {
+    "username": "usrgsyoe0isuo3vs",
+    "password": "kPikrx9olYzeGSLqskeD",
+    "database": "bydhaws1ipgz1nmdvmfc",
+    "host": "bydhaws1ipgz1nmdvmfc-mysql.services.clever-cloud.com",
+    "dialect": "mysql",
+    "logging":false
+  },
+  "test": {
+    "username": "usrgsyoe0isuo3vs",
+    "password": "kPikrx9olYzeGSLqskeD",
+    "database": "bydhaws1ipgz1nmdvmfc",
+    "host": "bydhaws1ipgz1nmdvmfc-mysql.services.clever-cloud.com",
+    "dialect": "mysql" 
+  },
+  "production": {
+    "username": "usrgsyoe0isuo3vs",
+    "password": "kPikrx9olYzeGSLqskeD",
+    "database": "bydhaws1ipgz1nmdvmfc",
+    "host": "bydhaws1ipgz1nmdvmfc-mysql.services.clever-cloud.com",
+    "dialect": "mysql"
+  }
+} 
+  
