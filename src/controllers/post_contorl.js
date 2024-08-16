@@ -1,9 +1,8 @@
-import validator from 'fastest-validator';
-import models from '../../models/index.js';
-import { v2 as cloudinary } from 'cloudinary';
-import { uploadImage } from '../cloudinary/cloudinary.js';
-
+import validator from "fastest-validator";
+import { v2 as cloudinary } from "cloudinary";
+import { uploadImage } from "../cloudinary/cloudinary.js";
 const v = new validator();
+import { db } from "../db/db.js";
 
 // Add new post
 export const save = async (req, res) => {
@@ -11,32 +10,93 @@ export const save = async (req, res) => {
     const imageName = new Date().getTime().toString();
     const Photo = await uploadImage(req.file.buffer, imageName);
 
-    const post = {
+    const postdata = {
       description: req.body.description,
       image: Photo.url,
-      receiver: Number(req.body.receiver),
-      sender: Number(req.body.sender),
-      date: req.body.date
+      date: req.body.date,
     };
 
     const schema = {
       description: { type: "string", optional: false, max: 500 },
       image: { type: "string", optional: false },
-      receiver: { type: "number", optional: false },
-      sender: { type: "number", optional: false },
-      date: { type: "string", optional: false }
+      date: { type: "string", optional: false },
     };
 
-    const validationResult = v.validate(post, schema);
+    const validationResult = v.validate(postdata, schema);
     if (validationResult !== true) {
-      return res.status(400).json({ message: "Validation failed", error: validationResult });
+      return res
+        .status(400)
+        .json({ message: "Validation failed", error: validationResult });
+    }
+    const userdep = await db.user.findUnique({
+      where: { id: Number(req.body.receiver) },
+    });
+    if (!userdep) {
+      return res
+        .status(404)
+        .json({ success: false, message: "user not found" });
+    }
+    const posdata = await db.post.create({
+      data: {
+        description: postdata.description,
+        image: postdata.image,
+        date: postdata.date,
+        depart: userdep.depart,
+      },
+    });
+    if (posdata && userdep) {
+      await db.relation.create({
+        data: {
+          senderId: Number(req.body.sender),
+          recieverId: Number(req.body.receiver),
+          postId: Number(posdata.id),
+          states: "قيد الانتظار",
+          depart: userdep.depart,
+        },
+      });
     }
 
-    await models.post.create(post);
-    res.status(201).json({ success: true, message: "Post created successfully!" });
+    res
+      .status(201)
+      .json({ success: true, message: "Post created successfully!" });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
+//change states
+export const changeStates = async (req, res) => {
+  const cond = req.params.num;
+  try {
+    const state = await db.relation.findMany({
+      where: { postId: req.body.id, recieverId: req.body.reciever },
+    });
+    if (state) {
+      if (cond == 1) {
+        await db.relation.updateMany({
+          where: { postId: req.body.id, recieverId: req.body.reciever },
+          data: {
+            states: "منجزة",
+          },
+        });
+      } else if (cond == 0) {
+        await db.relation.updateMany({
+          where: { postId: req.body.id, recieverId: req.body.reciever },
+          data: {
+            states: "مرفوضة",
+          },
+        });
+      } else {
+        res
+          .status(500)
+          .json({ success: false, message: "Something went wrong" });
+      }
+      res.status(200).json({ success: true, data: "done" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error });
+    console.log(error);
   }
 };
 
@@ -44,43 +104,47 @@ export const save = async (req, res) => {
 export const show = async (req, res) => {
   const id = req.params.id;
   try {
-    const post = await models.post.findByPk(id);
-    if (post) {
-      res.status(200).json({ success: true, data: post });
+    console.log(id);
+
+    const postat = await db.post.findUnique({ where: { id: Number(id) } });
+    console.log(postat);
+    if (postat) {
+      const state = await db.relation.findMany({
+        where: { postId: Number(id), recieverId: req.body.receiver },
+      });
+      console.log(state);
+
+      if (state) {
+        await db.relation.updateMany({
+          where: { postId: Number(id), recieverId: req.body.receiver },
+          data: { states: "قيد المعالجة" },
+        });
+        res.status(200).json({ success: true, data: postat });
+      } else {
+        res
+          .status(410)
+          .json({ success: false, message: "couldn't fined the relationship" });
+      }
     } else {
       res.status(404).json({ success: false, message: "Post not found" });
     }
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: "Something went wrong" });
+    console.log(error);
+
+    res.status(500).json({ success: false, message: error });
   }
 };
-
-// Get posts by receiver
+// Get posts by reciever
 export const destdata = async (req, res) => {
   try {
-    const receiver = req.body.receiver;
-
-    if (!receiver) {
-      return res.status(400).json({ success: false, message: 'Missing receiver parameter' });
-    }
-
-    const posts = await models.post.findAll({ where: { receiver: receiver } });
-    if (posts.length > 0) {
-      res.status(200).json({ success: true, data: posts });
-    } else {
-      res.status(404).json({ success: false, message: 'No data found for the provided receiver' });
-    }
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-};
-
-// Get all posts
-export const allData = async (req, res) => {
-  try {
-    const posts = await models.post.findAll();
+    const id = req.params.id;
+    const posts = await db.relation.findMany({
+      where: { recieverId: Number(id) },
+      select: {
+        states: true,
+        post: true,
+      },
+    });
     res.status(200).json({ success: true, data: posts });
   } catch (error) {
     console.error("Error:", error);
@@ -88,32 +152,55 @@ export const allData = async (req, res) => {
   }
 };
 
+// Get all posts
+export const allData = async (req, res) => {
+  try {
+    const posts = await db.relation.findMany({
+      select: { states: true, post: true },
+    });
+    res.status(200).json({ success: true, data: posts });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
 // Update post data
 export const updateData = async (req, res) => {
   try {
-    const imageName = new Date().getTime().toString();
-    const Photo = await uploadImage(req.file.buffer, imageName);
-
+    if (req.file) {
+      const imageName = new Date().getTime().toString();
+      const Photo = await uploadImage(req.file.buffer, imageName);
+      var url = Photo.url;
+    }
     const id = req.params.id;
-    const updatedPost = {
-      description: req.body.description,
-      image: Photo.url,
-      date: req.body.date
-    };
+    const { description, date } = req.body;
 
     const schema = {
-      description: { type: "string", optional: false, max: 500 },
-      image: { type: "string", optional: true },
-      date: { type: "string", optional: false }
+      description: { type: "string", optional: true, max: 500 },
+      url: { type: "string", optional: true },
+      date: { type: "string", optional: true },
     };
 
-    const validationResult = v.validate(updatedPost, schema);
+    const validationResult = v.validate({ description, url, date }, schema);
     if (validationResult !== true) {
-      return res.status(400).json({ success: false, message: "Validation failed", error: validationResult });
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        error: validationResult,
+      });
     }
 
-    await models.post.update(updatedPost, { where: { id: id } });
-    res.status(200).json({ success: true, message: "Post edited successfully!" });
+    await db.post.update({
+      where: { id: Number(id) },
+      data: {
+        description: description,
+        image: url,
+        date: date,
+      },
+    });
+    res
+      .status(200)
+      .json({ success: true, message: "Post edited successfully!" });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ success: false, message: "Something went wrong" });
@@ -124,8 +211,10 @@ export const updateData = async (req, res) => {
 export const drop = async (req, res) => {
   const id = req.params.id;
   try {
-    await models.post.destroy({ where: { id: id } });
-    res.status(200).json({ success: true, message: "Post deleted successfully" });
+    await db.post.delete({ where: { id: Number(id) } });
+    res
+      .status(200)
+      .json({ success: true, message: "Post deleted successfully" });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ success: false, message: "Something went wrong" });
@@ -135,8 +224,27 @@ export const drop = async (req, res) => {
 // Get all users' names
 export const usersNames = async (req, res) => {
   try {
-    const users = await models.user.findAll({ attributes: ['id', 'name'] });
+    const users = await db.user.findMany({
+      select: {
+        name: true,
+        id: true,
+      },
+    });
     res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+//get by department
+export const departData = async (req, res) => {
+  const Id = req.params.id
+  try {
+    const posts = await db.relation.findMany({
+      where: { depart: Number(Id) },
+      select: { states: true, post: true },
+    });
+    res.status(200).json({ success: true, data: posts });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ success: false, message: "Something went wrong" });

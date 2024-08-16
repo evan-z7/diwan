@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String? 
+  password String
+  position String
+  number Int?
+  department Department @relation("department" ,fields: [depart], references: [id])
+  depart Int
+  token String?
+  relationUser1 Relation[] @relation("reciever")
+  relationUser2 Relation[] @relation("sender")
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Post {
+  id    Int     @id @default(autoincrement())
+  description  String?
+  image  String
+  date  String
+  department Department @relation("department" ,fields: [depart], references: [id])
+  depart Int
+  relationPost1 Relation[] @relation("post")
+  relationPost2 Relation[] @relation("orginal")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+} 
+
+model Relation {
+  id    Int     @id @default(autoincrement())
+    reciever User @relation("reciever",fields: [recieverId], references: [id], onDelete: Cascade)
+    recieverId Int
+    sender User @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+    senderId Int 
+    post Post @relation("post" ,fields: [postId], references: [id], onDelete: Cascade)
+    postId Int  
+    orginal Post? @relation("orginal" ,fields: [orginalId], references: [id], onDelete: Cascade)
+    orginalId Int? 
+    states String
+    department Department @relation("department" ,fields: [depart], references: [id], onDelete: Cascade)
+    depart Int
+  }
+
+  model Department {
+    id    Int     @id @default(autoincrement())
+    name String  @unique
+    description String
+    relationDep Relation[] @relation("department")
+    userDep User[] @relation("department")
+    postDep Post[] @relation("department")
+
+
+  }

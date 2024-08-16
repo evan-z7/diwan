@@ -1,21 +1,28 @@
-import http from 'http';
-import express from 'express';
+import http from "http";
+import express from "express";
 // import app from './app.js';
-const port = process.env.PORT || 3000   
+const port = process.env.PORT || 3000;
 
-import bodyParser from 'body-parser';
-const app =express();
+import bodyParser from "body-parser";
+const app = express();
 
-import postRoute from './routers/posts.js';
-import userRoute from './routers/user.js';
-import notifyRoute from './routers/notify.js';
-import './cloudinary/cloudinary.js';
-import '../firebase/services.js';
+import postRoute from "./routers/posts.js";
+import userRoute from "./routers/user.js";
+import notifyRoute from "./routers/notify.js";
+import departRoute from "./routers/department.js";
+import "./cloudinary/cloudinary.js";
+import "../firebase/services.js";
+
+//////////////////////////
+import "./db/db.js";
+/////////////////////////
+
 app.use(bodyParser.json());
 
-app.use("/posts",postRoute)
-app.use("/user",userRoute)
+app.use("/posts", postRoute);
+app.use("/user", userRoute);
 app.use("/notify", notifyRoute);
+app.use("/department", departRoute);
 
 /*
 import express from 'express';
@@ -24,15 +31,13 @@ import express from 'express';
 // app.use("/apps", app);
 
 //static images
-app.use('/images',express.static('./images'))
+app.use("/images", express.static("./images"));
 
 //create connect with the server
-const server = http.createServer(app)
+const server = http.createServer(app);
 //testing the port page
-app.get('/', (req, res)=>{ res.send('hello')})
+app.get("/", (req, res) => {
+  res.send("hello");
+});
 //listen to the port
-server.listen(port,console.log('hello from port '+ port))
-
-
-
-
+server.listen(port, console.log("hello from port " + port));

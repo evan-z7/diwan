@@ -6,8 +6,7 @@ import {
   allData,
   updateData,
   drop,
-  login,
-} from "../controllers/user_contorl.js";
+} from "../controllers/department_controller.js";
 
 const router = new express.Router();
 
@@ -16,6 +15,5 @@ router.get("/:id", show);
 router.get("/", allData);
 router.patch("/:id", updateData);
 router.delete("/:id", drop);
-router.post("/login", login);
 
 export default router;
